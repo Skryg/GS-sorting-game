@@ -15,12 +15,12 @@ Built on top of the **[GS-Verse](https://github.com/Anastasiya999/GS-Verse)** en
 The game splits your attention between two channels: **calm-but-precise sorting** on the conveyor belt and **reflex-driven combat** against attacking enemies.
 
 - **Conveyor belt** — items of different categories ride toward you. Grab each one and drop it into the matching basket.
-  - Correct sort → **+ points** (builds combo).
-  - Wrong basket, or item falls off the belt → **− points and you lose a life**.
-- **Spiders (enemies)** — spiders spawn and move to attack your station. Shoot them with your controller.
-  - Killing a spider → **+ points**.
-  - A spider reaching you and attacking → **you lose life (and points)**.
-- **Endless mode** — no timer. The run continues **until your life drops to zero**, then it's game over. Survive as long as you can and beat your high score.
+  - Correct sort → **+ points**.
+  - Wrong basket, or item falls off the belt → **− points and some health**.
+  - Special items: ice melts in your hand, a bomb has to go into any bin before it explodes, fakes crumble.
+- **Spiders (enemies)** — spiders spawn and move to attack your station. Shoot them with the plasma gun.
+  - A spider reaching you and attacking → **you lose health**.
+- **Endless mode** — no timer. Health slowly regenerates; the run continues **until it drops to zero**, then it's game over. Survive as long as you can and beat your high score.
 
 As the run goes on, difficulty scales up: faster belt, denser spawns, more spiders at once.
 
@@ -39,18 +39,20 @@ As the run goes on, difficulty scales up: faster belt, denser spawns, more spide
 │   ├── GaussianAssets/  # splat data
 │   ├── Audio/, Icons/, Materials/, Models/, Prefabs/, Settings/ ...
 │   └── third-party: Spiders, SciFi Warehouse Kit (Asset Store, not in the repo), PlyImporter-master, Samples
-├── Packages/            # UPM manifest (GS renderer vendored via file:../package)
+├── Packages/            # UPM manifest (the GS renderer is referenced as file:../package)
 ├── ProjectSettings/     # Unity project settings
-├── package/             # Gaussian Splatting renderer (org.nesnausk.gaussian-splatting, MIT)
+├── package/             # Gaussian Splatting renderer (org.nesnausk.gaussian-splatting, MIT), modified
 ├── scripts/             # Python helpers for GS asset creation (import_params.py, ...)
 ├── docs/                # GDD + reference images
 ├── LICENSE.md           # MIT (see Licensing)
 └── README.md
 ```
 
-The Gaussian Splatting renderer is **vendored** in `package/` and referenced locally from
-`Packages/manifest.json` as `"org.nesnausk.gaussian-splatting": "file:../package"`, so the
-project resolves out of the box after cloning — no external package fetch required.
+`package/` is the Gaussian Splatting renderer package (`org.nesnausk.gaussian-splatting`) taken from GS-Verse
+at commit [`a70c39f`](https://github.com/Anastasiya999/GS-Verse/tree/a70c39f/package), which extends
+Aras Pranckevičius' Unity Gaussian Splatting. `Packages/manifest.json` references it as `file:../package`,
+so the project opens without fetching it. It is **not** an unmodified copy: the game depends on the changes
+listed in [Changes to GS-Verse code](#changes-to-gs-verse-code), so do not replace it with the upstream package.
 
 ---
 
@@ -62,7 +64,7 @@ cd GS-sorting-game
 ```
 
 1. Open the project in **Unity 6000.3.28f1** (other Unity 6000.3.x may work).
-2. Unity resolves the vendored GS package from `package/` automatically.
+2. Unity loads the GS renderer package from `package/` automatically.
 3. Import the two free Unity Asset Store packs (their license does not allow publishing them here).
    A window with links opens by itself while they are missing (also under **Tools > Asset Store Packages**):
    - [Fantasy Spider](https://assetstore.unity.com/packages/3d/characters/animals/insects/fantasy-spider-236418)
@@ -84,10 +86,38 @@ and the helper scripts in `scripts/`.
 
 ### VR / simulator
 
-- On a **real device**, disable the XR Device Simulator in the scene.
-- Input is set up with XR Interaction Toolkit + Input System over OpenXR; controllers
-  are mapped via the enabled OpenXR interaction profiles (Oculus Touch, Valve Index,
-  HTC Vive, KHR Simple).
+- Nothing has to be switched between the headset and the simulator. In Play mode without a headset the
+  XR Device Simulator is added automatically, and it is removed as soon as a headset (e.g. Quest Link) is
+  detected (`Assets/Scripts/EditorXRSimulatorBootstrap.cs`). It exists only in the Editor, never in a build.
+- Input is set up with XR Interaction Toolkit + Input System over OpenXR. Enabled interaction profiles:
+  - Android (Quest build): Meta Quest support, Oculus Touch, Meta Quest Touch Plus.
+  - PC (Play mode): Oculus Touch, Valve Index, HTC Vive, KHR Simple, hand interaction.
+
+---
+
+## Changes to GS-Verse code
+
+Compared with GS-Verse [`a70c39f`](https://github.com/Anastasiya999/GS-Verse/tree/a70c39f), the version this project started from.
+
+**Renderer (`package/`)**
+- Standalone Quest rendering: splats are sorted and projected before URP's main pass and drawn straight into
+  the camera target, so URP keeps a single native render pass on the tile-based GPU. Both eyes are drawn in
+  one pass (single-pass stereo). Splats that are opaque enough write depth (`Depth Alpha Cutoff` on the
+  renderer feature), so particles behind them are hidden.
+- All splat objects share GPU buffers and are sorted together into one draw, so overlapping objects blend
+  correctly. The data of an asset is uploaded once and shared by all its objects, also across respawns.
+- Sorting and view dependent colors are only refreshed when the view direction changes by
+  `Sort Angle` / `SH Refresh Angle` degrees; objects outside the view are skipped.
+- GaMeS deformation runs on the GPU from the imported asset, the source `.ply` is no longer loaded at runtime.
+  **Tools > Gaussian Splats > Bake GaMeS Splat Order** links the imported splats back to the mesh faces.
+- Per-object effects used by the game: disintegration, melting and tint.
+- **Tools > Gaussian Splats > Merge Splats** saves a copy of an asset with fewer splats.
+- Fixes: mesh leaks on every spawn, Editor-only code that broke player builds, deprecated Unity APIs.
+
+**Scripts (`Assets/Scripts/GSVerse/`)**
+- `BaseGSVerse`: uses the GPU deformation above, frees its per-rebuild data and runtime meshes
+  (`GSVerseSegmented` still builds from the `.ply`).
+- `GpuInflateAndReadback`: an unused field removed. All other GS-Verse scripts and PlyImporter are unchanged.
 
 ---
 
