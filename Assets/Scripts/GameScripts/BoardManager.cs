@@ -19,20 +19,20 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    public void AssignSpriteToColor(Sprite sprite, Color color)
+    public void AssignSpriteToColor(Sprite sprite, BinColor color)
     {
         switch (color)
         {
-            case Color.Red:
+            case BinColor.Red:
                 Red.GetComponent<Image>().sprite = sprite;
                 break;
-            case Color.Green:
+            case BinColor.Green:
                 Green.GetComponent<Image>().sprite = sprite;
                 break;
-            case Color.Yellow:
+            case BinColor.Yellow:
                 Yellow.GetComponent<Image>().sprite = sprite;
                 break;
-            case Color.Blue:
+            case BinColor.Blue:
                 Blue.GetComponent<Image>().sprite = sprite;
                 break;
             default:

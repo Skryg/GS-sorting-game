@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53ad4b5da4cf649f5b9a6d3dc7f1b4b7, type: 3}
+  m_Name: points_cloud
+  m_EditorClassIdentifier: 
+  m_FormatVersion: 20231020
+  m_SplatCount: 3160
+  m_BoundsMin: {x: -2.0648746, y: -0.32742602, z: -2.1556025}
+  m_BoundsMax: {x: 2.186612, y: 0.10157201, z: 2.0893385}
+  m_DataHash:
+    serializedVersion: 2
+    Hash: d74e6796ecdd4ea046ceebc1d486de67
+  m_PosFormat: 2
+  m_ScaleFormat: 2
+  m_SHFormat: 3
+  m_ColorFormat: 2
+  m_PosData: {fileID: 4900000, guid: f3d9d2b28cda2ec43b51318eaeea5b18, type: 3}
+  m_ColorData: {fileID: 4900000, guid: ae5af6896f5c98446b74f1cad2f6659f, type: 3}
+  m_OtherData: {fileID: 4900000, guid: 96a3d5038ce43c541b54698a5f6ff966, type: 3}
+  m_SHData: {fileID: 4900000, guid: 00cc8380c6d27304fb71bb9361b92904, type: 3}
+  m_ChunkData: {fileID: 4900000, guid: 9db2c24346a68c144a58cfc76378d9b9, type: 3}
+  m_Cameras: []
+  m_ObjPath: mesh_medieval-plate
+  m_NumberOfSplatsPerFace: 10
+  m_AlphaData: {fileID: 4900000, guid: 0ea6160718fd4c54da833086ae51162b, type: 3}
+  m_ScaleData: {fileID: 4900000, guid: 9253b38229e6ee346b5d734e052d6399, type: 3}
+  m_PointCloudPath: C:/Users/oskar/Desktop/studia/gaussy/medieval-plate/points_cloud.ply
+  m_useMeshLeftHandedCS: 0
+  m_SplatOrderData: {fileID: 4900000, guid: 7ece0f769674f3841bde18257db9e5b8, type: 3}

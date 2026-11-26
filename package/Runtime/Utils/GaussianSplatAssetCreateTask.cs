@@ -9,7 +9,9 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
@@ -565,6 +567,7 @@ namespace GaussianSplatting.Runtime.Utils
 
             if (GraphicsFormatUtility.IsCompressedFormat(gfxFormat))
             {
+#if UNITY_EDITOR
                 Texture2D tex = new Texture2D(width, height, GraphicsFormat.R32G32B32A32_SFloat, TextureCreationFlags.DontInitializePixels | TextureCreationFlags.DontUploadUponCreate);
                 tex.SetPixelData(data, 0);
                 EditorUtility.CompressTexture(tex, GraphicsFormatUtility.GetTextureFormat(gfxFormat), 100);
@@ -572,6 +575,12 @@ namespace GaussianSplatting.Runtime.Utils
                 colorData = CopyNativeArray(cmpData);
 
                 UnityEngine.Object.DestroyImmediate(tex);
+#else
+                // EditorUtility.CompressTexture is Editor-only; GS assets are created in the Editor,
+                // so this path must never run in a player build.
+                data.Dispose();
+                throw new NotSupportedException("Creating compressed Gaussian Splat color data is only supported in the Unity Editor.");
+#endif
             }
             else
             {

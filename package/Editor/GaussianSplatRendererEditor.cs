@@ -22,12 +22,13 @@ namespace GaussianSplatting.Editor
         const string kPrefExportBake = "nesnausk.GaussianSplatting.ExportBakeTransform";
 
         SerializedProperty m_PropAsset;
-        SerializedProperty m_PropRenderOrder;
         SerializedProperty m_PropSplatScale;
         SerializedProperty m_PropOpacityScale;
         SerializedProperty m_PropSHOrder;
         SerializedProperty m_PropSHOnly;
         SerializedProperty m_PropSortNthFrame;
+        SerializedProperty m_PropSortAngle;
+        SerializedProperty m_PropSHRefreshAngle;
         SerializedProperty m_PropRenderMode;
         SerializedProperty m_PropPointDisplaySize;
         SerializedProperty m_PropCutouts;
@@ -62,12 +63,13 @@ namespace GaussianSplatting.Editor
             m_ExportBakeTransform = EditorPrefs.GetBool(kPrefExportBake, false);
 
             m_PropAsset = serializedObject.FindProperty("m_Asset");
-            m_PropRenderOrder = serializedObject.FindProperty("m_RenderOrder");
             m_PropSplatScale = serializedObject.FindProperty("m_SplatScale");
             m_PropOpacityScale = serializedObject.FindProperty("m_OpacityScale");
             m_PropSHOrder = serializedObject.FindProperty("m_SHOrder");
             m_PropSHOnly = serializedObject.FindProperty("m_SHOnly");
             m_PropSortNthFrame = serializedObject.FindProperty("m_SortNthFrame");
+            m_PropSortAngle = serializedObject.FindProperty("m_SortAngle");
+            m_PropSHRefreshAngle = serializedObject.FindProperty("m_SHRefreshAngle");
             m_PropRenderMode = serializedObject.FindProperty("m_RenderMode");
             m_PropPointDisplaySize = serializedObject.FindProperty("m_PointDisplaySize");
             m_PropCutouts = serializedObject.FindProperty("m_Cutouts");
@@ -106,12 +108,13 @@ namespace GaussianSplatting.Editor
 
             EditorGUILayout.Space();
             GUILayout.Label("Render Options", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(m_PropRenderOrder);
             EditorGUILayout.PropertyField(m_PropSplatScale);
             EditorGUILayout.PropertyField(m_PropOpacityScale);
             EditorGUILayout.PropertyField(m_PropSHOrder);
             EditorGUILayout.PropertyField(m_PropSHOnly);
             EditorGUILayout.PropertyField(m_PropSortNthFrame);
+            EditorGUILayout.PropertyField(m_PropSortAngle);
+            EditorGUILayout.PropertyField(m_PropSHRefreshAngle);
 
             EditorGUILayout.Space();
             GUILayout.Label("Debugging Tweaks", EditorStyles.boldLabel);

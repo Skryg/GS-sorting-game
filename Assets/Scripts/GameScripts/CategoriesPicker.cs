@@ -8,20 +8,50 @@ public class CategoriesPicker : MonoBehaviour
     // Start is called before the first frame update
     private Dictionary<ObjectCategory, List<GameObject>> sortedDatabase = new();
     private List<ObjectCategory> selectedCategories = new();
-    private Dictionary<ObjectCategory, Color> categoryColorMapping = new();
+    private Dictionary<ObjectCategory, BinColor> categoryColorMapping = new();
     public IEnumerable<ObjectCategory> SelectedCategories => selectedCategories;
 
     private const int MaxCategoriesSelected = 4;
 
+    private GameObjectCatalog catalog;
+
     void Start()
     {
-        BuildDatabase();
-        SelectMaxCategories();
-        AssociateCategoriesToColors();
-        var boardManager = GameObject.FindObjectOfType<BoardManager>();
+        catalog = GameObjectCatalog.Load();
+        SelectCategoriesFromSetup();
+        ApplyCategoryColorMappingFromSetup();
+
+        if (selectedCategories is null || selectedCategories.Count == 0)
+        {
+            Debug.Log("No categories selected. Choosing random categories.");
+            SelectMaxCategories();
+            AssociateCategoriesToColors();
+        }
+        LoadSelectedPrefabs();
+        AssignSpritesToColorsInBoardManager();
+    }
+
+    private void AssignSpritesToColorsInBoardManager()
+    {
+        var boardManager = GameObject.FindAnyObjectByType<BoardManager>();
         foreach (var pair in categoryColorMapping)
         {
             boardManager.AssignSpriteToColor(pair.Key.objectIcon, pair.Value);
+        }
+    }
+
+
+    private void SelectCategoriesFromSetup()
+    {
+        selectedCategories = GameSetup.CategoryByColor.Values.ToList();
+    }
+
+    private void ApplyCategoryColorMappingFromSetup()
+    {
+        categoryColorMapping = new();
+        foreach (var colorCategory in GameSetup.CategoryByColor)
+        {
+            categoryColorMapping[colorCategory.Value] = colorCategory.Key;       
         }
     }
 
@@ -36,22 +66,22 @@ public class CategoriesPicker : MonoBehaviour
         return new List<GameObject>();
     }
 
-    public Color GetColorForCategory(ObjectCategory category)
+    public BinColor GetColorForCategory(ObjectCategory category)
     {
         if (categoryColorMapping.ContainsKey(category))
         {
             return categoryColorMapping[category];
         }
         Debug.LogWarning($"No color mapping found for category: {category.name}");
-        return Color.Red; // Default color
+        return BinColor.Red; // Default color
     }
 
     private void AssociateCategoriesToColors()
     {
-        categoryColorMapping = new Dictionary<ObjectCategory, Color>();
+        categoryColorMapping = new Dictionary<ObjectCategory, BinColor>();
         for (int i = 0; i < selectedCategories.Count; i++)
         {
-            categoryColorMapping[selectedCategories[i]] = (Color)i;
+            categoryColorMapping[selectedCategories[i]] = (BinColor)i;
         }
     }
 
@@ -62,7 +92,7 @@ public class CategoriesPicker : MonoBehaviour
 
     private List<ObjectCategory> GetNRandomCategories(int n)
     {
-        List<ObjectCategory> categories = sortedDatabase.Keys.ToList();
+        List<ObjectCategory> categories = catalog != null ? catalog.Categories : new List<ObjectCategory>();
         List<ObjectCategory> randomCategories = new List<ObjectCategory>();
         for (int i = 0; i < n && categories.Count > 0; i++)
         {
@@ -74,27 +104,17 @@ public class CategoriesPicker : MonoBehaviour
         return randomCategories;
     }
 
-    private void BuildDatabase()
+    // Only prefabs of the categories in play are loaded; the rest never reach memory.
+    private void LoadSelectedPrefabs()
     {
-        GameObject[] allPrefabs = Resources.LoadAll<GameObject>("Prefabs/GameObjects");
+        sortedDatabase = new();
+        if (catalog == null) return;
 
-        foreach (GameObject prefab in allPrefabs)
+        foreach (var category in selectedCategories)
         {
-            ObjectIdentifier id = prefab.GetComponent<ObjectIdentifier>();
-
-            // Make sure the script exists AND a category is assigned
-            if (id != null && id.category != null)
-            {
-                if (!sortedDatabase.ContainsKey(id.category))
-                {
-                    sortedDatabase[id.category] = new List<GameObject>();
-                }
-
-                sortedDatabase[id.category].Add(prefab);
-
-                // id.category.name reads the actual filename of the ScriptableObject
-                Debug.Log($"Registered: {id.typeName} into category {id.category.name}");
-            }
+            var prefabs = catalog.LoadPrefabs(category);
+            sortedDatabase[category] = prefabs;
+            Debug.Log($"Loaded {prefabs.Count} prefab(s) for category {category.name}");
         }
     }
 }

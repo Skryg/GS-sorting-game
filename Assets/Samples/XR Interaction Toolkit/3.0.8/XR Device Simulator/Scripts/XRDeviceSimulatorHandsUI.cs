@@ -1,3 +1,5 @@
+// The 3.0.8 sample still uses APIs that XRI 3.1+ marks obsolete; they keep working.
+#pragma warning disable CS0618
 using System;
 using System.Collections.Generic;
 using UnityEngine.InputSystem;

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53ad4b5da4cf649f5b9a6d3dc7f1b4b7, type: 3}
+  m_Name: points_cloud
+  m_EditorClassIdentifier: 
+  m_FormatVersion: 20231020
+  m_SplatCount: 64200
+  m_BoundsMin: {x: -13.849201, y: -13.869583, z: -13.886675}
+  m_BoundsMax: {x: 13.914106, y: 7.2031803, z: 13.878779}
+  m_DataHash:
+    serializedVersion: 2
+    Hash: 18bc26395d085070d3ea64bb52fdc4ab
+  m_PosFormat: 1
+  m_ScaleFormat: 1
+  m_SHFormat: 2
+  m_ColorFormat: 1
+  m_PosData: {fileID: 4900000, guid: c520f1a979ef71e48a6672a7b426d919, type: 3}
+  m_ColorData: {fileID: 4900000, guid: 5c41b0df13b45aa4e83d78fe5e8e7e34, type: 3}
+  m_OtherData: {fileID: 4900000, guid: 17e544ce26372f443b81e4c7a8bcb275, type: 3}
+  m_SHData: {fileID: 4900000, guid: b5f6226cd6b726c45a2ea0223c3d1b3c, type: 3}
+  m_ChunkData: {fileID: 4900000, guid: 28a9647ff3f654347bb4bdbdf84c2247, type: 3}
+  m_Cameras: []
+  m_ObjPath: orange_mesh
+  m_NumberOfSplatsPerFace: 10
+  m_AlphaData: {fileID: 4900000, guid: f7472dde8e8c10142b364bdaac0a616a, type: 3}
+  m_ScaleData: {fileID: 4900000, guid: 1c27f22147f38e94fabb5d1520cac72e, type: 3}
+  m_PointCloudPath: C:/Users/oskar/Desktop/studia/gaussy/GS-Verse/gauss_assets/orange/points_cloud.ply
+  m_useMeshLeftHandedCS: 0
+  m_SplatOrderData: {fileID: 4900000, guid: f3c1e846f84a86b4a92c004778467073, type: 3}

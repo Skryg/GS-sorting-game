@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3b7cb2afeebfe4f871658ea70fec0b, type: 3}
+  m_Name: GameObjectCatalog
+  m_EditorClassIdentifier: 
+  entries:
+  - resourcePath: Prefabs/GameObjects/Apple
+    category: {fileID: 11400000, guid: 969157cc62068ea4eb8609be8c93f8f7, type: 2}
+  - resourcePath: Prefabs/GameObjects/Calculator
+    category: {fileID: 11400000, guid: 44f51ba582b377c41b84e3f8394a65ef, type: 2}
+  - resourcePath: Prefabs/GameObjects/MedievalPlate
+    category: {fileID: 11400000, guid: 7ac05b9a6782b8446a1dca8e027fed73, type: 2}
+  - resourcePath: Prefabs/GameObjects/Orange
+    category: {fileID: 11400000, guid: 969157cc62068ea4eb8609be8c93f8f7, type: 2}
+  - resourcePath: Prefabs/GameObjects/Radio
+    category: {fileID: 11400000, guid: 44f51ba582b377c41b84e3f8394a65ef, type: 2}
+  - resourcePath: Prefabs/GameObjects/ToyDuck
+    category: {fileID: 11400000, guid: 79bea9eba33c0774198e4fd0cac16c2c, type: 2}
+  - resourcePath: Prefabs/GameObjects/Wrench
+    category: {fileID: 11400000, guid: c07a20f0d20c13c49aa9d259a80d253c, type: 2}

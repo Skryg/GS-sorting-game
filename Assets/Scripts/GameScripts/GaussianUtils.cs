@@ -1,27 +1,27 @@
-using GaussianSplatting.Runtime;
 using System.Collections;
-using System.Collections.Generic;
+using GaussianSplatting.Runtime;
 using UnityEngine;
 
 public static class GaussianUtils
 {
-    private static IEnumerator FadeOutAndDestroyGaussianObjectCoroutine(GameObject  gameObject, float vanishDelay)
+    // The coroutine runs on runner, so the faded object does not need a MonoBehaviour of its own.
+    public static void FadeOutAndDestroyGaussianObject(this MonoBehaviour runner, GameObject gameObject, float duration)
     {
-
-        var gaussianRenderer = gameObject.GetComponent<GaussianSplatRenderer>();
-        float startOpacity = gaussianRenderer.m_OpacityScale;
-        float time = 0f;
-        while (time < vanishDelay)
-        {
-            time += Time.deltaTime;
-            gaussianRenderer.m_OpacityScale = Mathf.Lerp(startOpacity, 0f, time / vanishDelay);
-            yield return null;
-        }
-        Object.Destroy(gameObject);
+        runner.StartCoroutine(FadeOutAndDestroy(gameObject, duration));
     }
 
-    public static void FadeOutAndDestroyGaussianObject(this MonoBehaviour monoBehaviour, GameObject gameObject, float vanishDelay)
+    private static IEnumerator FadeOutAndDestroy(GameObject gameObject, float duration)
     {
-        monoBehaviour.StartCoroutine(FadeOutAndDestroyGaussianObjectCoroutine(gameObject, vanishDelay));
+        var splats = gameObject.GetComponent<GaussianSplatRenderer>();
+        if (splats != null)
+        {
+            float startOpacity = splats.m_OpacityScale;
+            for (float time = 0f; time < duration; time += Time.deltaTime)
+            {
+                splats.m_OpacityScale = Mathf.Lerp(startOpacity, 0f, time / duration);
+                yield return null;
+            }
+        }
+        Object.Destroy(gameObject);
     }
 }

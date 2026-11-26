@@ -1,8 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
-using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 
@@ -29,6 +27,10 @@ public class PlasmaGun : MonoBehaviour
     public Hand hand = Hand.Right;
     public enum Hand { Left, Right }
 
+    [Header("Equip gating")]
+    [Tooltip("Optional: the weapon object toggled by WeaponToggle. If set, the gun only fires while this object is active in the hierarchy (i.e. the weapon is drawn).")]
+    public GameObject weaponRoot;
+
     private float heat;
     private float nextFireTime;
 
@@ -42,6 +44,14 @@ public class PlasmaGun : MonoBehaviour
 
     void Update()
     {
+        // Don't fire while the weapon is holstered/hidden.
+        if (weaponRoot != null && !weaponRoot.activeInHierarchy)
+            return;
+
+        // The trigger is used to click the pause menu.
+        if (GameService.Instance != null && GameService.Instance.IsPaused)
+            return;
+
         if (ReadTrigger() && Time.time >= nextFireTime)
         {
             Fire();
@@ -58,6 +68,7 @@ public class PlasmaGun : MonoBehaviour
             if (p.TryGetComponent<PlasmaProjectile>(out var proj))
             {
                 proj.Launch(muzzle.forward);
+                AudioManager.PlayAt(Sfx.Gun, muzzle.position);
                 if (muzzleFlash != null) muzzleFlash.Play();
                 if (recoil != null) recoil.Kick();
                 SendHaptics();

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53ad4b5da4cf649f5b9a6d3dc7f1b4b7, type: 3}
+  m_Name: points_cloud
+  m_EditorClassIdentifier: 
+  m_FormatVersion: 20231020
+  m_SplatCount: 48000
+  m_BoundsMin: {x: -0.8688821, y: -0.38416937, z: -1.1071931}
+  m_BoundsMax: {x: 1.0556407, y: 0.35643503, z: 1.0073851}
+  m_DataHash:
+    serializedVersion: 2
+    Hash: c9bb72ca26bcfcd234a2a588d9e41ddf
+  m_PosFormat: 1
+  m_ScaleFormat: 1
+  m_SHFormat: 2
+  m_ColorFormat: 1
+  m_PosData: {fileID: 4900000, guid: 3e9d46288969cd24f8206c3a08d15a28, type: 3}
+  m_ColorData: {fileID: 4900000, guid: cb4955c37dd96bf4f96ef876a650b7bb, type: 3}
+  m_OtherData: {fileID: 4900000, guid: 99baa5a510f2b674981890611ed99d9f, type: 3}
+  m_SHData: {fileID: 4900000, guid: 5266ef6d5dac96b4fa125fd5dce6d6d1, type: 3}
+  m_ChunkData: {fileID: 4900000, guid: c335ae5d98fd72942bfae671e6cc76ad, type: 3}
+  m_Cameras: []
+  m_ObjPath: digital_radio_mesh
+  m_NumberOfSplatsPerFace: 10
+  m_AlphaData: {fileID: 4900000, guid: 8f0de969455afc54b92f36cf0a7b6a89, type: 3}
+  m_ScaleData: {fileID: 4900000, guid: 4e59e0eb46ca37d489efae2495167b50, type: 3}
+  m_PointCloudPath: C:/Users/oskar/Desktop/studia/gaussy/GS-Verse/gauss_assets/digital-radio/points_cloud.ply
+  m_useMeshLeftHandedCS: 0
+  m_SplatOrderData: {fileID: 4900000, guid: 52b03b724a432f34caeab0e95d75f097, type: 3}

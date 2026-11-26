@@ -1,12 +1,12 @@
-# Sortownia — VR Sorting Arcade on Gaussian Splatting
+# Last Shift — VR Sorting Arcade on Gaussian Splatting
 
 A VR arcade game where every object you interact with is a real **Gaussian Splatting** asset. You stand at a sorting station, segregating incoming items into the right baskets while fending off spiders that swarm your workstation.
 
 Built on top of the **[GS-Verse](https://github.com/Anastasiya999/GS-Verse)** engine (mesh-based Gaussian Splatting for physics-aware VR interaction), which itself builds on the [Unity Gaussian Splatting](https://github.com/aras-p/UnityGaussianSplatting) playground.
 
-- **Engine:** Unity 2022.3.47
-- **VR stack:** OpenXR 1.14.3 + XR Interaction Toolkit 3.0.8
-- **Target headset:** HTC Vive Focus 3 (standalone, Android build)
+- **Engine:** Unity 6000.3 (URP, single pass stereo)
+- **VR stack:** OpenXR 1.16.1 + XR Interaction Toolkit 3.3.2
+- **Target platform:** Meta Quest 3 (standalone Android, Vulkan, IL2CPP).
 
 ---
 
@@ -24,7 +24,7 @@ The game splits your attention between two channels: **calm-but-precise sorting*
 
 As the run goes on, difficulty scales up: faster belt, denser spawns, more spiders at once.
 
-> Full design (mechanics, scoring balance, difficulty curve, Unity architecture, performance budget for Focus 3) lives in the **[Game Design Document](docs/GDD.md)**.
+> Full design (mechanics, scoring balance, difficulty curve, Unity architecture, performance budget) lives in the **[Game Design Document](docs/GDD.md)**.
 
 ---
 
@@ -32,7 +32,13 @@ As the run goes on, difficulty scales up: faster belt, denser spawns, more spide
 
 ```
 .
-├── Assets/              # Game scenes, scripts, art, prefabs
+├── Assets/
+│   ├── RoomScenes/      # StartMenuScene (menu) and MainGame (the game), the only build scenes
+│   ├── Scripts/         # GameScripts, MenuScripts, UIScripts; GSVerse/ = scripts taken over from GS-Verse
+│   ├── Resources/       # loaded by path only: sortable item prefabs, their catalog and GaMeS meshes
+│   ├── GaussianAssets/  # splat data
+│   ├── Audio/, Icons/, Materials/, Models/, Prefabs/, Settings/ ...
+│   └── third-party: Spiders, SciFi Warehouse Kit (Asset Store, not in the repo), PlyImporter-master, Samples
 ├── Packages/            # UPM manifest (GS renderer vendored via file:../package)
 ├── ProjectSettings/     # Unity project settings
 ├── package/             # Gaussian Splatting renderer (org.nesnausk.gaussian-splatting, MIT)
@@ -55,10 +61,22 @@ git clone <this-repo-url>
 cd GS-sorting-game
 ```
 
-1. Open the project in **Unity 2022.3.47** (other Unity 2022.3.x may work).
+1. Open the project in **Unity 6000.3.28f1** (other Unity 6000.3.x may work).
 2. Unity resolves the vendored GS package from `package/` automatically.
-3. The large Gaussian Splatting model assets are **not committed** (see `.gitignore`).
-   Place your GS assets under `Assets/GaussianAssets/` and raw inputs under `Assets/RawData/`.
+3. Import the two free Unity Asset Store packs (their license does not allow publishing them here).
+   A window with links opens by itself while they are missing (also under **Tools > Asset Store Packages**):
+   - [Fantasy Spider](https://assetstore.unity.com/packages/3d/characters/animals/insects/fantasy-spider-236418)
+   - [Sci-Fi Construction Kit (Modular)](https://assetstore.unity.com/packages/3d/environments/sci-fi/sci-fi-construction-kit-modular-159280)
+
+   For each: **Add to My Assets** on the page, then in Unity **Window > Package Manager > My Assets**, select it,
+   **Download** and **Import** with all files. Do not move the imported folders (`Assets/Spiders`,
+   `Assets/SciFi Warehouse Kit`): the scenes find the assets by their IDs. The materials are converted to URP
+   automatically after the import. Our changes (the spider's scale, animator, collider and AI) live in
+   `Assets/Prefabs/Enemies/`, so the packs stay unmodified. The game was made with the versions downloaded
+   in August (spider) and October 2026 (kit).
+4. Gaussian Splatting assets live in `Assets/GaussianAssets/`, their GaMeS meshes (`*.obj`) directly in `Assets/Resources/`.
+5. New sortable items go to `Assets/Resources/Prefabs/GameObjects/` (Tools > Gaussian Splats > Create Game Object Prefab).
+   The catalog the game reads (`Resources/GameObjectCatalog.asset`) is rebuilt automatically.
 
 For creating your own GS assets (COLMAP / single image → GaMeS → Unity), see the
 GS-Verse [asset-creation guide](https://github.com/Anastasiya999/GS-Verse#asset-creation)
@@ -67,8 +85,9 @@ and the helper scripts in `scripts/`.
 ### VR / simulator
 
 - On a **real device**, disable the XR Device Simulator in the scene.
-- Input is set up with XR Interaction Toolkit + Input System over OpenXR; Focus 3
-  controllers are mapped via the OpenXR controller profile.
+- Input is set up with XR Interaction Toolkit + Input System over OpenXR; controllers
+  are mapped via the enabled OpenXR interaction profiles (Oculus Touch, Valve Index,
+  HTC Vive, KHR Simple).
 
 ---
 
@@ -89,3 +108,36 @@ and [`package/LICENSE.md`](package/LICENSE.md). This game reuses:
 > keep their own licenses.
 
 The MIT copyright notices above are retained as required by the license.
+
+### Third-party assets (credits)
+
+The same list is shown in the game under **Credits** (`Assets/Scripts/MenuScripts/CreditsText.cs`).
+
+**3D models** — Sketchfab, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Converted into Gaussian splats (GaMeS) for this game.
+
+| Model | Author |
+|---|---|
+| [Apple](https://sketchfab.com/3d-models/apple-da0cfd4c6a4e41c5aaf06797b463235b) | Moshe Caine |
+| [Orange fruit](https://sketchfab.com/3d-models/orange-fruit-cbdf758f21924c168c1c3da1afed9754) | polyplant3d |
+| [Tools / Monkey Tool](https://sketchfab.com/3d-models/tools-monkey-tool-589a23fe7b2c4e91b86b5f6581c9a7e5) | ROY |
+| [Digital Radio Clock](https://sketchfab.com/3d-models/digital-radio-clock-23b2d0e81d414836877c555e5b5fc18d) | NoMoreFeelings |
+| [Electronic Calculator Citizen](https://sketchfab.com/3d-models/electronic-calculator-citizen-gameready-free-0e325a2314b34282b208343509007f1a) | Dokazvo |
+| [Decretive Medieval Plate](https://sketchfab.com/3d-models/decretive-medieval-plate-free-cfd91b3b51c34f08a6c29651586d3194) | wolfgar74 |
+| [Sci-Fi Fusion Plasma Gun](https://sketchfab.com/3d-models/sci-fi-fusion-plasma-gun-45f39027cac3435da3361d901a2aaef9) | Abdooelsabry |
+
+**Unity Asset Store** (Standard Unity Asset Store EULA, not included in this repository, see Getting started)
+- [Fantasy Spider](https://assetstore.unity.com/packages/3d/characters/animals/insects/fantasy-spider-236418)
+- [Sci-Fi Construction Kit (Modular)](https://assetstore.unity.com/packages/3d/environments/sci-fi/sci-fi-construction-kit-modular-159280) — the warehouse room
+
+**Sounds and music** — all [CC0](https://creativecommons.org/publicdomain/zero/1.0/)
+- Kenney: [Interface Sounds](https://kenney.nl/assets/interface-sounds), [Sci-fi Sounds](https://kenney.nl/assets/sci-fi-sounds), [Music Jingles](https://kenney.nl/assets/music-jingles)
+- [Conveyor belt](https://freesound.org/people/TiesWijnen/sounds/478247/) — TiesWijnen (Freesound)
+- [80 CC0 creature SFX](https://opengameart.org/content/80-cc0-creature-sfx) and [#2](https://opengameart.org/content/80-cc0-creture-sfx-2) — rubberduck (OpenGameArt)
+- [Monster Sound Effects Pack](https://opengameart.org/content/monster-sound-effects-pack) — Ogrebane (OpenGameArt)
+- [Dark Sci-Fi Audio Pack](https://opengameart.org/content/dark-sci-fi-audio-pack) — SRG774 (OpenGameArt)
+- [37 hits/punches](https://opengameart.org/content/37-hitspunches) — Independent.nu (OpenGameArt)
+- Crumble, bomb beep and explosion sounds — synthesized for this game
+
+**Icons** — [OpenMoji](https://openmoji.org/), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
+**Tools** — [TRELLIS](https://huggingface.co/spaces/trellis-community/TRELLIS) (image-to-3D generation)

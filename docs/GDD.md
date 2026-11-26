@@ -1,8 +1,8 @@
 # Dokument Designu Gry (GDD)
 
-## „Sortownia" — VR arcade z obiektami Gaussian Splatting
+## „Last Shift" — VR arcade z obiektami Gaussian Splatting
 
-> Wersja: 0.2 (draft) · Data: 2026-06-29 · Silnik: Unity · Platforma: VR (HTC Vive Focus 3, standalone)
+> Wersja: 0.2 (draft) · Data: 2026-06-29 · Silnik: Unity · Platforma: PC VR (OpenXR, Windows Standalone)
 
 ---
 
@@ -180,17 +180,17 @@ public enum ObjectType { Sortable, Creature, Trap }
 - Zgłaszają zdarzenia do `GameManager` / kanałów ScriptableObject.
 - UI, audio i efekty **subskrybują** te zdarzenia. Ułatwia to testowanie i rozbudowę.
 
-### 6.5 Wydajność (krytyczne — standalone Vive Focus 3)
+### 6.5 Wydajność
 
-> Focus 3 to standalone na Snapdragon XR2 (klasa ~Quest 2). Cały rendering GS liczy się na headsecie — **budżet renderowania splatów jest głównym ograniczeniem projektu**. Pakiet GS (`org.nesnausk.gaussian-splatting`) jest GPU-heavy (compute shadery, sortowanie), więc wymaga ostrego limitowania.
+> Gra działa jako PC VR, więc rendering GS liczy się na GPU komputera. Build standalone na Androida (HTC Vive Focus 3) jest wstrzymany — nie działa i nie jest planowany w najbliższym czasie. **Budżet renderowania splatów nadal jest głównym ograniczeniem projektu**. Pakiet GS (`org.nesnausk.gaussian-splatting`) jest GPU-heavy (compute shadery, sortowanie), więc wymaga ostrego limitowania.
 
 - **Twardy budżet liczby splatów na klatkę.** Ustal limit łącznej liczby gaussianów widocznych naraz i nie przekraczaj go (mała liczba obiektów GS jednocześnie + niskie warianty assetów).
-- **Decymacja assetów GS** — eksportuj obiekty z możliwie najmniejszą liczbą splatów, która jeszcze wygląda dobrze. Testuj na headsecie, nie w edytorze.
+- **Decymacja assetów GS** — eksportuj obiekty z możliwie najmniejszą liczbą splatów, która jeszcze wygląda dobrze. Testuj w goglach, nie tylko w edytorze.
 - **Object pooling** dla obiektów taśmy i stworków (brak `Instantiate`/`Destroy` w trakcie rundy).
 - **Proste collidery zastępcze** (box/sphere) zamiast geometrii GS; zero raycastów/fizyki na splatach.
 - Rozważ **stworki bez GS** (zwykłe lekkie meshe), a GS zarezerwuj dla obiektów na taśmie — ogranicza to liczbę splatów w „roju".
-- Profiluj na docelowym sprzęcie wcześnie (OVR Metrics / Unity Profiler przez ADB). Cel: stabilne 72/90 Hz Focusa 3.
-- **Foveated rendering** (jeśli dostępny przez OpenXR na Focus 3) jako dodatkowy zapas wydajności.
+- Profiluj na docelowym sprzęcie wcześnie (Unity Profiler). Cel: stabilne odświeżanie gogli bez gubienia klatek.
+- **Foveated rendering** (jeśli dostępny przez OpenXR na docelowych goglach) jako dodatkowy zapas wydajności.
 
 ---
 
@@ -204,7 +204,7 @@ public enum ObjectType { Sortable, Creature, Trap }
 | Pauza / menu | Przycisk menu |
 
 - **Setup inputu:** **XR Interaction Toolkit 3.0.8** + Input System, runtime przez **OpenXR 1.14.3**.
-- **Headset:** HTC Vive Focus 3 (standalone, build na Android). Kontrolery Focus 3 mapowane przez profil OpenXR.
+- **Headset:** PC VR przez OpenXR (build Windows Standalone). Kontrolery mapowane przez włączone profile interakcji OpenXR.
 - **XR Hands 1.4.3** dostępne w projekcie — hand tracking jako opcjonalny alternatywny sposób chwytania (poza zakresem MVP).
 
 ---
@@ -237,9 +237,9 @@ Minimalny zestaw, by gra była grywalna i testowalna:
 
 ## 10. Otwarte pytania / do decyzji
 
-- [x] ~~Headset docelowy~~ → **HTC Vive Focus 3 (standalone)**. Budżet wydajności = priorytet (sekcja 6.5).
+- [x] ~~Headset docelowy~~ → **PC VR (OpenXR)**. Build standalone na Androida (HTC Vive Focus 3) wstrzymany — nie działa. Budżet wydajności = priorytet (sekcja 6.5).
 - [x] ~~Stack interakcji~~ → **XR Interaction Toolkit 3.0.8 + OpenXR 1.14.3** (potwierdzone w manifeście).
-- [ ] Ile splatów na klatkę uniesie Focus 3 przy stabilnym 72/90 Hz? (wymaga testu na sprzęcie — wpływa na liczbę obiektów GS naraz)
+- [ ] Ile splatów na klatkę uniesie docelowy sprzęt przy stabilnym odświeżaniu gogli? (wymaga testu na sprzęcie — wpływa na liczbę obiektów GS naraz)
 - [ ] Czy stworki robimy na GS, czy na lekkich meshach (rekomendacja: meshe, sekcja 6.5)?
 - [ ] Ostateczny motyw kategorii: recykling vs jedzenie/narzędzia/elektrośmieci.
 - [ ] Czy stworki zakłócają taśmę (mechanicznie), czy tylko zabierają życie?

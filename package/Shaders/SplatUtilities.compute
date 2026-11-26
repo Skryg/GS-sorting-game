@@ -16,6 +16,7 @@
 #pragma kernel CSScaleSelection
 #pragma kernel CSExportData
 #pragma kernel CSCopySplats
+#pragma kernel CSDeformSplats
 
 // DeviceRadixSort
 #pragma multi_compile __ KEY_UINT KEY_INT KEY_FLOAT
@@ -44,9 +45,23 @@ float4 _VecScreenParams;
 float4 _VecWorldSpaceCameraPos;
 int _SelectionMode;
 
+// Per-eye matrices for CSCalcViewData; a single-pass stereo frame stores one record per eye in _SplatViewData.
+uint _SplatViewCount;
+float4x4 _EyeMatrixMV[2];
+float4x4 _EyeMatrixVP[2];
+float4x4 _EyeMatrixP[2];
+
 RWStructuredBuffer<uint> _SplatSortDistances;
 RWStructuredBuffer<uint> _SplatSortKeys;
 uint _SplatCount;
+
+// All objects share the view and sort buffers, each one writes the range starting at _SplatOffset.
+// The sort buffers only hold visible objects, there it starts at _SplatSortOffset.
+uint _SplatOffset;
+uint _SplatSortOffset;
+uint _SplatTotalCount;
+uint _WriteSortKeys;
+uint _WriteColors;
 
 // radix sort etc. friendly, see http://stereopsis.com/radix.html
 uint FloatToSortableUint(float f)
@@ -82,6 +97,7 @@ void CSCalcDistances (uint3 id : SV_DispatchThreadID)
 }
 
 RWStructuredBuffer<SplatViewData> _SplatViewData;
+RWStructuredBuffer<uint2> _SplatColors; // 4xFP16, kept between frames and shared by both eyes
 
 float _SplatScale;
 float _SplatOpacityScale;
@@ -102,6 +118,7 @@ StructuredBuffer<GaussianCutoutShaderData> _SplatCutouts;
 
 RWByteAddressBuffer _SplatSelectedBits;
 ByteAddressBuffer _SplatDeletedBits;
+ByteAddressBuffer _SplatSelectedBitsRead; // read-only view of _SplatSelectedBits for CSCalcViewData
 uint _SplatBitsValid;
 
 void DecomposeCovariance(float3 cov2d, out float2 v1, out float2 v2)
@@ -186,6 +203,49 @@ bool IsSplatCut(float3 pos)
     return finalCut;
 }
 
+float _Disintegration; // 0 = intact, 1 = gone
+float4 _DisintegrationCenter; // xyz, w = how far the splats fly apart
+float _Melt; // 0 = intact, 1 = gone
+float2 _MeltHeight; // world space bottom and top of the object
+float4 _SplatTint; // rgb, a = amount
+
+float3 RandomFromIndex(uint n)
+{
+    // PCG, see "Hash Functions for GPU Rendering"
+    uint3 v = uint3(n, n * 1664525u + 1013904223u, n * 22695477u + 1u);
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+    return (v & 0xFFFFFFu) / 16777215.0;
+}
+
+// Splats come loose at different times, drift outwards, fall and shrink. Distances are in world units.
+// Returns the remaining size.
+float Disintegrate(uint idx, inout float3 worldPos)
+{
+    float3 rnd = RandomFromIndex(idx);
+    float start = rnd.x * 0.5;
+    float t = saturate((_Disintegration - start) / (1.0 - start));
+    float3 outward = worldPos - _DisintegrationCenter.xyz;
+    outward /= max(length(outward), 1.0e-4);
+    float3 drift = outward * 0.12 + (RandomFromIndex(idx ^ 0x5bd1e995u) - 0.5) * 0.2;
+    worldPos += drift * _DisintegrationCenter.w * t * (0.4 + rnd.y) + float3(0, -0.55, 0) * t * t * (0.5 + rnd.z);
+    return 1.0 - t;
+}
+
+// Drops run down from the bottom up; each one sags, then falls and shrinks. Returns the remaining size.
+float Melt(uint idx, inout float3 worldPos)
+{
+    float3 rnd = RandomFromIndex(idx ^ 0x9e3779b9u);
+    float height = saturate((worldPos.y - _MeltHeight.x) / max(_MeltHeight.y - _MeltHeight.x, 1.0e-3));
+    float start = 0.7 * saturate(height * 0.75 + rnd.x * 0.25);
+    float t = saturate((_Melt - start) / (1.0 - start));
+    worldPos.y -= t * t * (0.25 + 0.35 * rnd.y);
+    worldPos.xz += (rnd.yz - 0.5) * 0.03 * t;
+    return 1.0 - t * t;
+}
+
 [numthreads(GROUP_SIZE,1,1)]
 void CSCalcViewData (uint3 id : SV_DispatchThreadID)
 {
@@ -193,62 +253,96 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
     if (idx >= _SplatCount)
         return;
 
-    SplatData splat = LoadSplatData(idx);
-    SplatViewData view = (SplatViewData)0;
-    
-    float3 centerWorldPos = mul(_MatrixObjectToWorld, float4(splat.pos,1)).xyz;
-    float4 centerClipPos = mul(UNITY_MATRIX_VP, float4(centerWorldPos, 1));
-    half opacityScale = _SplatOpacityScale;
+    float3 pos, scale;
+    float4 rot;
+    LoadSplatGeometry(idx, pos, rot, scale);
+
+    float3 centerWorldPos = mul(_MatrixObjectToWorld, float4(pos,1)).xyz;
     float splatScale = _SplatScale;
 
-    // deleted?
+    bool hidden = IsSplatCut(pos);
+    if (_Disintegration > 0)
+    {
+        float size = Disintegrate(idx, centerWorldPos);
+        splatScale *= size;
+        hidden = hidden || size <= 0.01;
+        pos = mul(_MatrixWorldToObject, float4(centerWorldPos, 1)).xyz;
+    }
+    if (_Melt > 0)
+    {
+        float size = Melt(idx, centerWorldPos);
+        splatScale *= size;
+        hidden = hidden || size <= 0.01;
+        pos = mul(_MatrixWorldToObject, float4(centerWorldPos, 1)).xyz;
+    }
+    bool selected = false;
     if (_SplatBitsValid)
     {
         uint wordIdx = idx / 32;
         uint bitIdx = idx & 31;
         uint wordVal = _SplatDeletedBits.Load(wordIdx * 4);
         if (wordVal & (1 << bitIdx))
-        {
-            centerClipPos.w = 0;
-        }
+            hidden = true;
+        selected = (_SplatSelectedBitsRead.Load(wordIdx * 4) & (1u << bitIdx)) != 0;
     }
 
-    // cutouts
-    if (IsSplatCut(splat.pos))
+    bool anyVisible = false;
+    float4 clipPos[2];
+    for (uint eye = 0; eye < _SplatViewCount; ++eye)
     {
-        centerClipPos.w = 0;
+        clipPos[eye] = mul(_EyeMatrixVP[eye], float4(centerWorldPos, 1));
+        if (hidden)
+            clipPos[eye].w = 0;
+        anyVisible = anyVisible || clipPos[eye].w > 0;
     }
 
-    view.pos = centerClipPos;
-    bool behindCam = centerClipPos.w <= 0;
-    if (!behindCam)
+    // The 3D covariance is shared, only the screen-space projection differs between eyes.
+    float3 cov3d0 = 0, cov3d1 = 0;
+    if (anyVisible)
     {
-        float4 boxRot = splat.rot;
-        float3 boxSize = splat.scale;
-
-        float3x3 splatRotScaleMat = CalcMatrixFromRotationScale(boxRot, boxSize);
-
-        float3 cov3d0, cov3d1;
+        float3x3 splatRotScaleMat = CalcMatrixFromRotationScale(rot, scale);
         CalcCovariance3D(splatRotScaleMat, cov3d0, cov3d1);
         float splatScale2 = splatScale * splatScale;
         cov3d0 *= splatScale2;
         cov3d1 *= splatScale2;
-        float3 cov2d = CalcCovariance2D(splat.pos, cov3d0, cov3d1, _MatrixMV, UNITY_MATRIX_P, _VecScreenParams);
-        
-        DecomposeCovariance(cov2d, view.axis1, view.axis2);
+    }
 
+    uint outputIndex = _SplatOffset + idx;
+    if (_WriteColors != 0)
+    {
+        SplatData splat = LoadSplatData(idx);
         float3 worldViewDir = _VecWorldSpaceCameraPos.xyz - centerWorldPos;
-        float3 objViewDir = mul((float3x3)_MatrixWorldToObject, worldViewDir);
-        objViewDir = normalize(objViewDir);
+        float3 objViewDir = normalize(mul((float3x3)_MatrixWorldToObject, worldViewDir));
 
         half4 col;
         col.rgb = ShadeSH(splat.sh, objViewDir, _SHOrder, _SHOnly != 0);
-        col.a = min(splat.opacity * opacityScale, 65000);
-        view.color.x = (f32tof16(col.r) << 16) | f32tof16(col.g);
-        view.color.y = (f32tof16(col.b) << 16) | f32tof16(col.a);
+        col.rgb = lerp(col.rgb, _SplatTint.rgb, _SplatTint.a);
+        col.a = selected ? -1 : min(splat.opacity * _SplatOpacityScale, 65000); // negative alpha marks selected splats
+        uint2 packedColor;
+        packedColor.x = (f32tof16(col.r) << 16) | f32tof16(col.g);
+        packedColor.y = (f32tof16(col.b) << 16) | f32tof16(col.a);
+        _SplatColors[outputIndex] = packedColor;
     }
-    
-    _SplatViewData[idx] = view;
+
+    for (uint viewIndex = 0; viewIndex < _SplatViewCount; ++viewIndex)
+    {
+        SplatViewData view = (SplatViewData)0;
+        view.pos = clipPos[viewIndex];
+        if (view.pos.w > 0)
+        {
+            float3 cov2d = CalcCovariance2D(pos, cov3d0, cov3d1, _EyeMatrixMV[viewIndex], _EyeMatrixP[viewIndex], _VecScreenParams);
+            DecomposeCovariance(cov2d, view.axis1, view.axis2);
+        }
+        _SplatViewData[outputIndex + viewIndex * _SplatTotalCount] = view;
+    }
+
+    if (_WriteSortKeys != 0)
+    {
+        // distance instead of view depth: the order then survives turning the head
+        uint sortIndex = _SplatSortOffset + idx;
+        _SplatSortDistances[sortIndex] = FloatToSortableUint(distance(centerWorldPos, _VecWorldSpaceCameraPos.xyz));
+        _SplatSortKeys[sortIndex] = outputIndex;
+    }
 }
 
 
@@ -755,4 +849,64 @@ void CSCopySplats (uint3 id : SV_DispatchThreadID)
         uint dstBitIdx = dstIdx & 31;
         _CopyDstEditDeleted.InterlockedOr(dstWordIdx * 4, 1u << dstBitIdx);
     }
+}
+
+// Rebuilds geometry of GaMeS splats from the deformed mesh. Same math as GaMeSUtils.CreateXYZData and
+// CreateRotationsAndScalesJob; the output is Float32 positions and scales, see GaussianSplatGpuData.EnsureDeformData.
+ByteAddressBuffer _DeformSplats; // DeformSplat in C#: float3 alpha, float scale, uint3 vertices
+ByteAddressBuffer _DeformVertices; // float3
+
+float4 QuatFromAxes(float3 x, float3 y, float3 z)
+{
+    float4 q;
+    float trace = x.x + y.y + z.z;
+    if (trace > 0)
+        q = float4(y.z - z.y, z.x - x.z, x.y - y.x, 1 + trace);
+    else if (x.x > y.y && x.x > z.z)
+        q = float4(1 + x.x - y.y - z.z, y.x + x.y, z.x + x.z, y.z - z.y);
+    else if (y.y > z.z)
+        q = float4(y.x + x.y, 1 + y.y - x.x - z.z, z.y + y.z, z.x - x.z);
+    else
+        q = float4(z.x + x.z, z.y + y.z, 1 + z.z - x.x - y.y, x.y - y.x);
+    return normalize(q);
+}
+
+float3 NormalizeOr(float3 v, float3 fallback)
+{
+    float len2 = dot(v, v);
+    return len2 > 1.0e-30 ? v * rsqrt(len2) : fallback;
+}
+
+[numthreads(GROUP_SIZE,1,1)]
+void CSDeformSplats (uint3 id : SV_DispatchThreadID)
+{
+    uint idx = id.x;
+    if (idx >= _SplatCount)
+        return;
+
+    uint addr = idx * 28;
+    float4 alphaScale = asfloat(_DeformSplats.Load4(addr));
+    uint3 face = _DeformSplats.Load3(addr + 16);
+    float3 v0 = asfloat(_DeformVertices.Load3(face.x * 12));
+    float3 v1 = asfloat(_DeformVertices.Load3(face.y * 12));
+    float3 v2 = asfloat(_DeformVertices.Load3(face.z * 12));
+
+    float3 pos = alphaScale.x * v0 + alphaScale.y * v1 + alphaScale.z * v2;
+
+    float3 center = (v0 + v1 + v2) / 3.0;
+    float3 d1 = v1 - center;
+    float3 d2 = v2 - center;
+    float3 normal = NormalizeOr(cross(v1 - v0, v2 - v0), float3(1,0,0));
+    float3 basis1 = NormalizeOr(d1, float3(0,1,0));
+    float3 basis2 = NormalizeOr(d2 - dot(d2, normal) * normal - dot(d2, basis1) * basis1, cross(normal, basis1));
+    float4 rot = QuatFromAxes(cross(basis1, basis2), basis1, basis2);
+
+    const float eps = 1.0e-8;
+    float3 size = float3(eps, length(d1) * 0.5, dot(d2, basis2) * 0.5);
+    float3 scale = max(0, alphaScale.w * size) + eps;
+    if (_SplatChunkCount != 0)
+        scale = pow(scale, 1.0 / 8.0); // undone when loading chunked data
+
+    _SplatPos.Store3(idx * 12, asuint(pos));
+    _SplatOther.Store4(idx * 16, uint4(EncodeQuatToNorm10(PackSmallest3Rotation(rot)), asuint(scale)));
 }

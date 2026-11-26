@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53ad4b5da4cf649f5b9a6d3dc7f1b4b7, type: 3}
+  m_Name: points_cloud
+  m_EditorClassIdentifier: 
+  m_FormatVersion: 20231020
+  m_SplatCount: 315680
+  m_BoundsMin: {x: -0.669075, y: -0.12576601, z: -0.055217}
+  m_BoundsMax: {x: 0.6928566, y: 0.175484, z: 0.054613005}
+  m_DataHash:
+    serializedVersion: 2
+    Hash: a71ad2009796e397183a6ac7fb596316
+  m_PosFormat: 2
+  m_ScaleFormat: 2
+  m_SHFormat: 3
+  m_ColorFormat: 2
+  m_PosData: {fileID: 4900000, guid: 1ff319f61f0103c4f80ed6584cc3c6d8, type: 3}
+  m_ColorData: {fileID: 4900000, guid: 507e527489eaa4a4eacf575dc6932353, type: 3}
+  m_OtherData: {fileID: 4900000, guid: 317e4ef06c77e3740a4a3ca65bc6d093, type: 3}
+  m_SHData: {fileID: 4900000, guid: f38336d56a3a9bc4ba537e7d611183cd, type: 3}
+  m_ChunkData: {fileID: 4900000, guid: 3f7204031934a644abe6106688542190, type: 3}
+  m_Cameras: []
+  m_ObjPath: mesh_wrench
+  m_NumberOfSplatsPerFace: 10
+  m_AlphaData: {fileID: 4900000, guid: 0aa83f48b885bcb4ba62cc67ab1f3791, type: 3}
+  m_ScaleData: {fileID: 4900000, guid: da31570e180318942807a122d5797dfb, type: 3}
+  m_PointCloudPath: C:/Users/oskar/Desktop/studia/gaussy/GS-Verse/gauss_assets/monkey-wrench/points_cloud.ply
+  m_useMeshLeftHandedCS: 0

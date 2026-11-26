@@ -3,6 +3,7 @@ using GaussianSplatting.Runtime.Utils;
 using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Burst;
 using System;
@@ -417,11 +418,11 @@ namespace GaussianSplatting.Runtime.GaMeS
 
             NativeArray<float> decodedScales = new NativeArray<float>(numberOfSplats, allocator, NativeArrayOptions.UninitializedMemory);
 
-            for (int i = 0; i < numberOfSplats; i++)
+            // runs on every spawn of a bendable object; only the first float of each record is the scale
+            unsafe
             {
-                int offset = i * vectorSize;
-                float scale = BitConverter.ToSingle(fileBytes, offset);
-                decodedScales[i] = scale;
+                fixed (byte* source = fileBytes)
+                    UnsafeUtility.MemCpyStride(decodedScales.GetUnsafePtr(), sizeof(float), source, vectorSize, sizeof(float), numberOfSplats);
             }
 
             return decodedScales;
@@ -440,21 +441,8 @@ namespace GaussianSplatting.Runtime.GaMeS
                 return default;
             }
 
-            NativeArray<float3> alphas = new NativeArray<float3>(totalPoints, allocator);
-
-            for (int i = 0; i < totalPoints; i++)
-            {
-                int offset = i * bytesPerPoint;
-
-                float x = BitConverter.ToSingle(fileBytes, offset);
-                float y = BitConverter.ToSingle(fileBytes, offset + 4);
-                float z = BitConverter.ToSingle(fileBytes, offset + 8);
-
-                alphas[i] = new float3(x, y, z);
-
-            }
-
-
+            NativeArray<float3> alphas = new NativeArray<float3>(totalPoints, allocator, NativeArrayOptions.UninitializedMemory);
+            NativeArray<byte>.Copy(fileBytes, 0, alphas.Reinterpret<byte>(bytesPerPoint), 0, expectedBytes);
             return alphas;
         }
 
@@ -612,7 +600,7 @@ namespace GaussianSplatting.Runtime.GaMeS
                 return default;
             }
 
-            Mesh mesh = meshFilter.mesh;
+            Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null)
             {
                 Debug.LogError("No mesh found in the MeshFilter component.");
@@ -711,6 +699,7 @@ namespace GaussianSplatting.Runtime.GaMeS
         }
 
 
+        [BurstCompile]
         struct CreateXYZDataJobSelected : IJobParallelFor
         {
             [ReadOnly] public NativeArray<float3> m_Alphas;

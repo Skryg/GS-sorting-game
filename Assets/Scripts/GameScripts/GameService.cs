@@ -1,155 +1,224 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion;
 
 [RequireComponent(typeof(CategoriesPicker))]
 [RequireComponent(typeof(ObjectSpawner))]
 public class GameService : MonoBehaviour
 {
-    public static GameService Instance { get; private set; }
-    private CategoriesPicker categoriesPicker;
-    private ObjectSpawner objectSpawner;
-    private ConveyorBelt conveyorBelt;
-
-    private BoardPainter boardPainter;
-
     public const int PointsForCorrectMatch = 10;
     public const int PointsForInvalidMatch = -20;
-    public const int PointsForObjectFallen = -30;
+    public const int PointsForObjectFallen = -10;
+    public const int PointsForObjectShot = -10;
+    public const int PointsForMockShot = 5;
+    public const int PointsForBombDisposed = 10;
+    public const int PointsForBombExploded = -20;
 
     public const float MaxHealth = 1.0f;
     public const float HealthRegenerationRate = 0.05f;
     public const float HealthForCorrectMatch = 0;
     public const float HealthForInvalidMatch = -0.1f;
-    public const float HealthForObjectFallen = -0.2f;
+    public const float HealthForObjectFallen = -0.1f;
+    public const float HealthForObjectShot = -0.1f;
+    public const float HealthForBombExploded = -0.25f;
 
     public const float StartSpawningOffsetInSeconds = 3f;
 
+    public static GameService Instance { get; private set; }
+
+    public event Action GameOver;
+    public bool IsGameOver { get; private set; }
+    public event Action<bool> PauseChanged;
+    public bool IsPaused { get; private set; }
+    public int Score => scoreUpdater.Value;
+    // 1-based place in the highscore table after game over, 0 when the score did not make it.
+    public int LastPlacement { get; private set; }
+
+    private CategoriesPicker categoriesPicker;
+    private ObjectSpawner objectSpawner;
+    private HealthUpdater healthUpdater;
+    private ScoreUpdater scoreUpdater;
+    private readonly List<LocomotionProvider> pausedLocomotion = new();
+
     private class HealthUpdater
     {
+        private readonly BoardPainter boardPainter;
         private float health = MaxHealth;
-        private readonly BoardPainter _boardPainter;
+
+        public event Action Depleted;
+
         public HealthUpdater(BoardPainter boardPainter)
         {
-            _boardPainter = boardPainter;
+            this.boardPainter = boardPainter;
         }
 
         public float Value
         {
-            get { return health; }
+            get => health;
             set
             {
+                float previous = health;
                 health = Mathf.Clamp(value, 0, MaxHealth);
-                if (_boardPainter != null)
-                {
-                    _boardPainter.HealthUpdate(health);
-                }
+                if (boardPainter != null) boardPainter.HealthUpdate(health);
+                if (health <= 0 && previous > 0) Depleted?.Invoke();
             }
         }
     }
+
     private class ScoreUpdater
     {
-        private int score = 0;
-        private readonly BoardPainter _boardPainter;
+        private readonly BoardPainter boardPainter;
+        private int score;
+
         public ScoreUpdater(BoardPainter boardPainter)
         {
-            _boardPainter = boardPainter;
+            this.boardPainter = boardPainter;
         }
+
         public int Value
         {
-            get { return score; }
+            get => score;
             set
             {
                 score = value;
-                if (_boardPainter != null)
-                {
-                    _boardPainter.UpdateScore(score);
-                }
+                if (boardPainter != null) boardPainter.UpdateScore(score);
             }
         }
     }
-
-    private HealthUpdater healthUpdater;
-    private ScoreUpdater scoreUpdater;
-
 
     private void Awake()
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(this.gameObject);
+            Destroy(gameObject);
         }
         else
         {
             Instance = this;
-            DontDestroyOnLoad(this.gameObject);
+            DontDestroyOnLoad(gameObject);
         }
 
         categoriesPicker = GetComponent<CategoriesPicker>();
         objectSpawner = GetComponent<ObjectSpawner>();
     }
 
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
-        boardPainter = FindObjectOfType<BoardPainter>(true);
-        if (boardPainter == null)
-        {
-            Debug.LogError("BoardPainter not found in the scene. Please ensure there is a BoardPainter component in the scene.");
-        }
+        var boardPainter = FindAnyObjectByType<BoardPainter>(FindObjectsInactive.Include);
+        if (boardPainter == null) Debug.LogError("No BoardPainter in the scene, score and health will not be shown.");
+
         healthUpdater = new HealthUpdater(boardPainter);
+        healthUpdater.Depleted += EndGame;
         scoreUpdater = new ScoreUpdater(boardPainter);
+        gameObject.AddComponent<GameMusicDirector>();
     }
 
-
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        Regenerate();
-    }
-
-    public void CollectTrashObject(ObjectIdentifier identifier, Color color)
-    {
-        var categoryColor = categoriesPicker.GetColorForCategory(identifier.category);
-        if (categoryColor == color)
-        {
-            RewardForColorMatch();
-        }
-        else
-        {
-            PunishForColorMismatch();
-        }
-    }
-
-
-    private void Regenerate()
-    {
+        if (IsGameOver || IsPaused) return;
         healthUpdater.Value += Time.deltaTime * HealthRegenerationRate;
     }
 
-    public void RewardForColorMatch()
+    // Unlike game over, a pause has to freeze everything mid-motion (physics, belt, enemies, projectiles),
+    // so time is stopped. Head tracking and the UI keep working; locomotion is blocked explicitly.
+    public void SetPaused(bool paused)
     {
-        scoreUpdater.Value += PointsForCorrectMatch;
-        healthUpdater.Value += HealthForCorrectMatch;
+        if (IsGameOver || paused == IsPaused) return;
+        IsPaused = paused;
+
+        Time.timeScale = paused ? 0f : 1f;
+        AudioListener.pause = paused;
+
+        if (paused)
+        {
+            foreach (var provider in FindObjectsByType<LocomotionProvider>(FindObjectsSortMode.None))
+            {
+                provider.enabled = false;
+                pausedLocomotion.Add(provider);
+            }
+        }
+        else
+        {
+            foreach (var provider in pausedLocomotion)
+            {
+                if (provider != null) provider.enabled = true;
+            }
+            pausedLocomotion.Clear();
+        }
+
+        PauseChanged?.Invoke(paused);
     }
 
-    public void PunishForColorMismatch()
+    // Gameplay is stopped explicitly: Time.timeScale = 0 would also freeze time-based XR smoothing and locomotion.
+    private void EndGame()
     {
-        scoreUpdater.Value += PointsForInvalidMatch;
-        healthUpdater.Value += HealthForInvalidMatch;
+        if (IsGameOver) return;
+        IsGameOver = true;
+
+        objectSpawner.enabled = false;
+        var gameStaging = GetComponent<GameStaging>();
+        if (gameStaging != null)
+        {
+            gameStaging.enabled = false;
+            gameStaging.CancelInvoke();
+        }
+        foreach (var enemySpawner in FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None))
+        {
+            enemySpawner.enabled = false;
+        }
+        var belt = FindAnyObjectByType<ConveyorBelt>();
+        if (belt != null)
+        {
+            belt.StopAllCoroutines();
+            belt.SetConveyorSpeed(0f);
+        }
+
+        LastPlacement = Highscores.Submit(Score);
+        GameOver?.Invoke();
     }
 
-    public void PunishForObjectFallen()
+    // GameService survives scene loads (DontDestroyOnLoad), so it has to go away before a new round starts.
+    public void LoadScene(string sceneName)
     {
-        scoreUpdater.Value += PointsForObjectFallen;
-        healthUpdater.Value += HealthForObjectFallen;
+        Time.timeScale = 1f;
+        AudioListener.pause = false;
+        Destroy(gameObject);
+        SceneManager.LoadScene(sceneName);
     }
+
+    public void CollectTrashObject(ObjectIdentifier identifier, BinColor color)
+    {
+        if (categoriesPicker.GetColorForCategory(identifier.category) == color) RewardForColorMatch();
+        else PunishForColorMismatch();
+    }
+
+    public void RewardForColorMatch() => ChangeScore(PointsForCorrectMatch, HealthForCorrectMatch, Sfx.PointsSuccess);
+
+    public void PunishForColorMismatch() => ChangeScore(PointsForInvalidMatch, HealthForInvalidMatch, Sfx.PointsError);
+
+    public void PunishForObjectFallen() => ChangeScore(PointsForObjectFallen, HealthForObjectFallen, Sfx.PointsError);
+
+    public void PunishForObjectShot() => ChangeScore(PointsForObjectShot, HealthForObjectShot, Sfx.PointsError);
+
+    public void RewardForMockShot() => ChangeScore(PointsForMockShot, 0f, Sfx.PointsSuccess);
+
+    public void RewardForBombDisposed() => ChangeScore(PointsForBombDisposed, 0f, Sfx.PointsSuccess);
+
+    public void PunishForBombExploded() => ChangeScore(PointsForBombExploded, HealthForBombExploded, Sfx.PointsError);
 
     public void PlayerHit(float damage)
     {
+        if (IsGameOver || IsPaused) return;
         healthUpdater.Value -= damage;
     }
 
+    private void ChangeScore(int points, float health, Sfx sound)
+    {
+        if (IsGameOver || IsPaused) return;
+        scoreUpdater.Value += points;
+        healthUpdater.Value += health;
+        AudioManager.Play2D(sound);
+    }
 }

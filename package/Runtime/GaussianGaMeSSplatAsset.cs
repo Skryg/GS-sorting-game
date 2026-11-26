@@ -13,6 +13,9 @@ namespace GaussianSplatting.Runtime
         [SerializeField] TextAsset m_ScaleData;
         [SerializeField] string m_PointCloudPath;
         [SerializeField] bool m_useMeshLeftHandedCS;
+        // Asset splat index -> GaMeS face splat index (int32 per splat). Imported data is Morton-reordered,
+        // so this links it back to the mesh faces. Baked by Tools > Gaussian Splats > Bake GaMeS Splat Order.
+        [SerializeField] TextAsset m_SplatOrderData;
 
         public string objPath => m_ObjPath;
         public int numberOfSplatsPerFace => m_NumberOfSplatsPerFace;
@@ -21,6 +24,12 @@ namespace GaussianSplatting.Runtime
         public TextAsset scaleData => m_ScaleData;
 
         public bool useMeshLeftHandedCS => m_useMeshLeftHandedCS;
+        public TextAsset splatOrderData => m_SplatOrderData;
+
+        public void SetSplatOrderData(TextAsset data)
+        {
+            m_SplatOrderData = data;
+        }
 
         public void Initialize(int splats, VectorFormat formatPos, VectorFormat formatScale, ColorFormat formatColor, SHFormat formatSh, Vector3 bMin, Vector3 bMax, CameraInfo[] cameraInfos, string pointCloudPath, bool useMeshLeftHandedCS)
         {

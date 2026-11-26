@@ -1,17 +1,31 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
-using System.Security.Cryptography;
 
 [RequireComponent(typeof(CategoriesPicker))]
 public class ObjectSpawner : MonoBehaviour
 {
-    private CategoriesPicker categoriesPicker;
     public GameObject spawnPoint;
+
+    [Tooltip("How far from the hand items can be grabbed (metres). The hand rays are shortened to the same length.")]
+    public float grabReach = 1.2f;
+
+    [Tooltip("Random spawn offset across the belt (metres, each way).")]
+    public float spreadAcross = 0.12f;
+    [Tooltip("Random spawn offset along the belt (metres, each way). Large values let consecutive items end up in one spot.")]
+    public float spreadAlong = 0.03f;
+
+    [Header("Special items (chances per spawned item, together at most 1)")]
+    [Range(0f, 1f), Tooltip("A fake that crumbles when picked up.")]
+    public float mockChance = 0.08f;
+    [Range(0f, 1f), Tooltip("Ice that melts once picked up.")]
+    public float iceChance = 0.08f;
+    [Range(0f, 1f), Tooltip("A bomb that has to go into any bin before it explodes.")]
+    public float bombChance = 0.05f;
+
     public float SpawnIntervalInSeconds { get; set; } = float.PositiveInfinity;
-    private float timeCounter = 0f;
-    
+
+    private CategoriesPicker categoriesPicker;
+    private float timeSinceSpawn;
+
     private void Awake()
     {
         categoriesPicker = GetComponent<CategoriesPicker>();
@@ -19,55 +33,45 @@ public class ObjectSpawner : MonoBehaviour
 
     private void Start()
     {
-        if (spawnPoint == null)
-        {
-            spawnPoint = GameObject.Find("SpawnPoint");
-            if (spawnPoint == null)
-                Debug.LogError("SpawnPoint not found in the scene. Please assign it in the inspector or create a GameObject named 'SpawnPoint'.");
-        }
+        if (spawnPoint == null) spawnPoint = GameObject.Find("SpawnPoint");
+        if (spawnPoint == null) Debug.LogError("No spawn point: assign it in the inspector or add a GameObject named 'SpawnPoint'.", this);
+
+        gameObject.AddComponent<GrabReach>().reach = grabReach;
     }
 
     private void Update()
     {
-        timeCounter += Time.deltaTime;
-        if (timeCounter > SpawnIntervalInSeconds)
-        {
-            timeCounter = 0f;
-            if (categoriesPicker.SelectedCategories.Count() > 0)
-            {
-                ObjectCategory categoryToSpawn = categoriesPicker.SelectedCategories.ElementAt(Random.Range(0, categoriesPicker.SelectedCategories.Count()));
-                SpawnRandomObjectFromCategory(categoryToSpawn);
-            }
-        }
+        timeSinceSpawn += Time.deltaTime;
+        if (timeSinceSpawn <= SpawnIntervalInSeconds) return;
+        timeSinceSpawn = 0f;
+
+        var category = categoriesPicker.SelectedCategories.GetRandomOrNull();
+        if (category != null && spawnPoint != null) Spawn(category);
     }
 
-    private Vector3 GetSpawnPositionWithRandomOffset(GameObject spawnPoint)
+    private void Spawn(ObjectCategory category)
     {
-        Vector3 randomOffset = new Vector3(Random.Range(-0.2f, 0.2f), 0, Random.Range(-0.2f, 0.2f));
-        Vector3 spawnPosition = spawnPoint.transform.position + randomOffset;
-        return spawnPosition;
-    }
-
-    private void SpawnRandomObjectFromCategory(ObjectCategory category)
-    {
-        if (spawnPoint == null)
+        var prefab = categoriesPicker.GetPrefabsForCategory(category).GetRandomOrNull();
+        if (prefab == null)
         {
-            Debug.LogError("SpawnPoint is not assigned. Please assign it in the inspector or create a GameObject named 'SpawnPoint'.");
+            Debug.LogWarning($"No prefabs found for category: {category.name}");
             return;
         }
 
-
-        var position = GetSpawnPositionWithRandomOffset(spawnPoint);
-        var candidatePrefabs = categoriesPicker.GetPrefabsForCategory(category);
-        var randomObject = candidatePrefabs.GetRandomOrNull();
-        if (randomObject != null)
-        {
-            Instantiate(randomObject, position, Quaternion.identity);
-        }
-        else
-        {
-            Debug.LogWarning($"No prefabs found for category: {category.name}");
-        }
+        var offset = new Vector3(Random.Range(-spreadAcross, spreadAcross), 0f, Random.Range(-spreadAlong, spreadAlong));
+        var item = Instantiate(prefab, spawnPoint.transform.position + offset, Quaternion.identity);
+        item.AddComponent<FallDetector>();
+        NearGrabOnly.Apply(item, grabReach);
+        HeldItemBlocker.Apply(item);
+        item.AddComponent<ShootableItem>();
+        MakeSpecial(item);
     }
 
+    private void MakeSpecial(GameObject item)
+    {
+        float roll = Random.value;
+        if ((roll -= mockChance) < 0f) item.AddComponent<MockItem>();
+        else if ((roll -= iceChance) < 0f) item.AddComponent<IceItem>();
+        else if ((roll -= bombChance) < 0f) item.AddComponent<BombItem>();
+    }
 }

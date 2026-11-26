@@ -1,0 +1,22 @@
+# Asset data must stay byte-exact: no line ending conversion, no text diffs.
+*.bytes binary
+*.obj binary
+*.ply binary
+*.fbx binary
+*.blend binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.tga binary
+*.psd binary
+*.exr binary
+*.hdr binary
+*.tif binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.apk binary
+*.dll binary
